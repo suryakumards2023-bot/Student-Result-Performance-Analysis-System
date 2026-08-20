@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
+import API from "../services/api";
 
 function Dashboard() {
   const [stats, setStats] = useState(null);
@@ -10,9 +10,7 @@ function Dashboard() {
       try {
         const token = localStorage.getItem("token");
 
-        const response = await axios.get("http://localhost:5000/api/dashboard/stats", {
-          headers: token ? { Authorization: `Bearer ${token}` } : {}
-        });
+        const response = await API.get("/dashboard/stats");
 
         console.log("Dashboard API:", response.data);
 

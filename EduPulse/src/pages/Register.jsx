@@ -22,6 +22,8 @@ function Register() {
     setLoading(true);
 
     try {
+      console.log("Selected role:", role);
+      
       const response = await API.post("/auth/register", {
         name,
         email,
@@ -116,11 +118,13 @@ function Register() {
             <select
               value={role}
               onChange={(e) => setRole(e.target.value)}
+              required
             >
+              <option value="">Select Role</option>
               <option value="student">Student</option>
-              <option value="faculty">Faculty</option>
             </select>
           </div>
+
 
           <button
             type="submit"

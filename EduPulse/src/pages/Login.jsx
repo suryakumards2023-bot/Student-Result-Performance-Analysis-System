@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import API from "../services/api";
+import { useAuth } from "../context/AuthContext";
 
 function Login() {
   const navigate = useNavigate();
+  const { login } = useAuth();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -23,18 +25,7 @@ function Login() {
         password
       });
 
-      console.log("Login response:", response.data);
-
-      // Save JWT token
-      localStorage.setItem(
-        "token",
-        response.data.token
-      );
-
-      console.log(
-        "Token saved:",
-        response.data.token
-      );
+      login({ token: response.data.token, user: response.data.data.user });
 
       // Go to Dashboard
       navigate("/dashboard");

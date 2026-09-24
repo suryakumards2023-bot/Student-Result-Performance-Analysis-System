@@ -38,12 +38,10 @@ export const getDashboardStats = async (req, res) => {
       });
 
     // Calculate average percentage
-    const resultData = await Result.find(
-      {},
-      "percentage"
-    );
+    const resultData = await Result.find({}, "percentage marksObtained");
 
     let averagePercentage = 0;
+    let averageMarks = 0;
 
     if (resultData.length > 0) {
       const totalPercentage =
@@ -59,6 +57,9 @@ export const getDashboardStats = async (req, res) => {
           resultData.length
         ).toFixed(2)
       );
+      averageMarks = Number(
+        (resultData.reduce((total, result) => total + result.marksObtained, 0) / resultData.length).toFixed(2)
+      );
     }
 
     res.status(200).json({
@@ -71,7 +72,8 @@ export const getDashboardStats = async (req, res) => {
         totalResults,
         passedResults,
         failedResults,
-        averagePercentage
+        averagePercentage,
+        averageMarks
       }
     });
   } catch (error) {
@@ -133,12 +135,15 @@ export const getDepartmentPerformance = async (req, res) => {
         );
       }
 
+      const passedResults = results.filter((result) => result.status === "Pass").length;
+
       performance.push({
         departmentId: department._id,
         departmentName: department.name,
         totalStudents: students.length,
         totalResults: results.length,
-        averagePercentage
+        averagePercentage,
+        passRate: results.length ? Number(((passedResults / results.length) * 100).toFixed(2)) : null
       });
     }
 
@@ -242,10 +247,11 @@ export const getTopStudents = async (req, res) => {
     const studentPerformance = [];
 
     for (const student of students) {
+      await student.populate("department", "name code");
       // Find student's results
       const results = await Result.find({
         student: student._id
-      }).select("percentage");
+      }).select("percentage grade");
 
       // Skip students without results
       if (results.length === 0) {
@@ -270,8 +276,10 @@ export const getTopStudents = async (req, res) => {
         rollNumber: student.studentId,
         name: student.name,
         email: student.email,
+        department: student.department,
         totalResults: results.length,
-        averagePercentage
+        averagePercentage,
+        grade: results.sort((a, b) => b.percentage - a.percentage)[0].grade
       });
     }
 
@@ -365,5 +373,20 @@ export const getPassFailDistribution = async (req, res) => {
       message:
         "Failed to load pass/fail distribution"
     });
+  }
+};
+
+export const getRecentResults = async (req, res) => {
+  try {
+    const results = await Result.find()
+      .populate("student", "name studentId")
+      .populate("subject", "name code")
+      .sort({ createdAt: -1 })
+      .limit(8);
+
+    res.json({ success: true, results });
+  } catch (error) {
+    console.error("Recent results error:", error.message);
+    res.status(500).json({ success: false, message: "Failed to load recent results" });
   }
 };

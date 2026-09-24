@@ -1,42 +1,11 @@
-function Departments() {
-  return (
-    <div className="page">
-
-      <div className="page-header">
-        <div>
-          <h1>Department Management</h1>
-          <p>Manage college departments.</p>
-        </div>
-
-        <button className="primary-btn">
-          + Add Department
-        </button>
-      </div>
-
-      <div className="simple-grid">
-
-        <div className="management-card">
-          <h2>CSE</h2>
-          <p>Computer Science & Engineering</p>
-          <button className="small-btn">Manage</button>
-        </div>
-
-        <div className="management-card">
-          <h2>ECE</h2>
-          <p>Electronics & Communication</p>
-          <button className="small-btn">Manage</button>
-        </div>
-
-        <div className="management-card">
-          <h2>ME</h2>
-          <p>Mechanical Engineering</p>
-          <button className="small-btn">Manage</button>
-        </div>
-
-      </div>
-
-    </div>
-  );
+import { useEffect, useState } from "react";
+import API from "../services/api";
+const empty = { departmentId: "", name: "", code: "", description: "", hod: "", status: "active" };
+export default function Departments() {
+  const [items, setItems] = useState([]), [form, setForm] = useState(empty), [editing, setEditing] = useState(null), [error, setError] = useState(""), [open, setOpen] = useState(false);
+  const load = () => API.get("/departments").then(r => setItems(r.data.data.departments)).catch(e => setError(e.response?.data?.message || "Could not load departments"));
+  useEffect(() => { load(); }, []);
+  const save = async e => { e.preventDefault(); setError(""); try { editing ? await API.put(`/departments/${editing}`, form) : await API.post("/departments", form); setOpen(false); setEditing(null); setForm(empty); load(); } catch (e) { setError(e.response?.data?.message || "Could not save department"); } };
+  const remove = async id => { if (confirm("Delete this department?")) { try { await API.delete(`/departments/${id}`); load(); } catch (e) { setError(e.response?.data?.message || "Could not delete department"); } } };
+  return <div className="page"><div className="page-header"><div><h1>Department Management</h1><p>Create and maintain academic departments.</p></div><button className="primary-btn" onClick={() => { setForm(empty); setEditing(null); setOpen(true); }}>+ Add Department</button></div>{error && <p className="notice error">{error}</p>}{open && <form className="editor-card" onSubmit={save}>{Object.entries(form).map(([key, value]) => key === "status" ? <select key={key} value={value} onChange={e => setForm({...form, status:e.target.value})}><option>active</option><option>inactive</option></select> : <input key={key} required={["departmentId","name","code"].includes(key)} placeholder={key.replace(/([A-Z])/g, " $1")} value={value} onChange={e => setForm({...form, [key]:e.target.value})} />)}<button className="primary-btn">Save</button><button type="button" className="small-btn" onClick={() => setOpen(false)}>Cancel</button></form>}<div className="simple-grid">{items.length ? items.map(d => <article className="management-card" key={d._id}><h2>{d.code}</h2><h3>{d.name}</h3><p>{d.description || "No description provided."}</p><p>HOD: {d.hod || "—"}</p><button className="small-btn" onClick={() => { setForm({departmentId:d.departmentId,name:d.name,code:d.code,description:d.description || "",hod:d.hod || "",status:d.status}); setEditing(d._id); setOpen(true); }}>Edit</button> <button className="small-btn danger-btn" onClick={() => remove(d._id)}>Delete</button></article>) : <p className="empty-state">No departments yet.</p>}</div></div>;
 }
-
-export default Departments;

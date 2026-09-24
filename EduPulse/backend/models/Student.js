@@ -2,6 +2,12 @@ import mongoose from "mongoose";
 
 const studentSchema = new mongoose.Schema(
   {
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      unique: true,
+      sparse: true
+    },
     studentId: {
       type: String,
       required: true,
@@ -39,7 +45,8 @@ const studentSchema = new mongoose.Schema(
     },
 
     department: {
-      type: String,
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Department",
       required: true,
       trim: true
     },

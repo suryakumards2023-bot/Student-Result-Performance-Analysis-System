@@ -1,3 +1,5 @@
+import { Link } from "react-router-dom";
+
 function Footer() {
   return (
     <footer className="footer">
@@ -12,17 +14,16 @@ function Footer() {
 
         <div>
           <h3>Quick Links</h3>
-          <p>Dashboard</p>
-          <p>Students</p>
-          <p>Results</p>
-          <p>Performance</p>
+          <p><Link to="/">Home</Link></p>
+          <p><a href="/#about">About</a></p>
+          <p><a href="/#features">Features</a></p>
+          <p><a href="/#contact">Contact</a></p>
         </div>
 
         <div>
-          <h3>EduPulse</h3>
-          <p>Manage results.</p>
-          <p>Analyze performance.</p>
-          <p>Improve academic outcomes.</p>
+          <h3>Account</h3>
+          <p><Link to="/login">Login</Link></p>
+          <p><Link to="/register">Register</Link></p>
         </div>
 
       </div>

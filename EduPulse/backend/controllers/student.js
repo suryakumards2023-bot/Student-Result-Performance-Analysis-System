@@ -1,4 +1,6 @@
 import Student from "../models/Student.js";
+import Department from "../models/Department.js";
+import Result from "../models/Result.js";
 
 // =========================
 // CREATE STUDENT
@@ -8,6 +10,7 @@ export const createStudent = async (req, res) => {
   try {
     const {
       studentId,
+      user,
       name,
       email,
       phone,
@@ -38,6 +41,7 @@ export const createStudent = async (req, res) => {
       });
     }
 
+    if (!(await Department.exists({ _id: department }))) return res.status(400).json({ success: false, message: "Department not found" });
     // Check duplicate student ID
     const existingStudentId = await Student.findOne({ studentId });
 
@@ -62,7 +66,7 @@ export const createStudent = async (req, res) => {
 
     // Create student
     const student = await Student.create({
-      studentId,
+      studentId, user: user || undefined,
       name,
       email: email.toLowerCase(),
       phone,
@@ -79,7 +83,7 @@ export const createStudent = async (req, res) => {
     res.status(201).json({
       success: true,
       message: "Student created successfully",
-      student
+      data: { student: await student.populate("department", "name code") }
     });
   } catch (error) {
     console.error("Create student error:", error.message);
@@ -98,14 +102,22 @@ export const createStudent = async (req, res) => {
 // =========================
 export const getStudents = async (req, res) => {
   try {
-    const students = await Student.find().sort({
+    if (req.user.role === "student") {
+      const student = await Student.findOne({ user: req.user._id }).populate("department", "name code");
+      return res.json({ success: true, data: { students: student ? [student] : [], pagination: { total: student ? 1 : 0, page: 1, limit: 1, pages: 1 } } });
+    }
+    const { search = "", department, semester, page = 1, limit = 20 } = req.query;
+    const filter = {};
+    if (search) filter.$or = [{ name: { $regex: search, $options: "i" } }, { studentId: { $regex: search, $options: "i" } }, { email: { $regex: search, $options: "i" } }];
+    if (department) filter.department = department;
+    if (semester) filter.semester = Number(semester);
+    const [students, total] = await Promise.all([Student.find(filter).populate("department", "name code").sort({
       createdAt: -1
-    });
+    }).skip((Number(page) - 1) * Number(limit)).limit(Number(limit)), Student.countDocuments(filter)]);
 
     res.status(200).json({
       success: true,
-      count: students.length,
-      students
+      data: { students, pagination: { total, page: Number(page), limit: Number(limit), pages: Math.ceil(total / Number(limit)) } }
     });
   } catch (error) {
     console.error("Get students error:", error.message);
@@ -124,7 +136,12 @@ export const getStudents = async (req, res) => {
 // =========================
 export const getStudentById = async (req, res) => {
   try {
-    const student = await Student.findById(req.params.id);
+    if (req.user.role === "student") {
+      const own = await Student.findOne({ _id: req.params.id, user: req.user._id }).populate("department", "name code");
+      if (!own) return res.status(403).json({ success: false, message: "You can only access your own academic information" });
+      return res.json({ success: true, data: { student: own } });
+    }
+    const student = await Student.findById(req.params.id).populate("department", "name code");
 
     if (!student) {
       return res.status(404).json({
@@ -135,7 +152,7 @@ export const getStudentById = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      student
+      data: { student }
     });
   } catch (error) {
     console.error("Get student error:", error.message);
@@ -188,12 +205,13 @@ export const updateStudent = async (req, res) => {
       }
     });
 
+    if (req.body.department && !(await Department.exists({ _id: req.body.department }))) return res.status(400).json({ success: false, message: "Department not found" });
     const updatedStudent = await student.save();
 
     res.status(200).json({
       success: true,
       message: "Student updated successfully",
-      student: updatedStudent
+      data: { student: await updatedStudent.populate("department", "name code") }
     });
   } catch (error) {
     console.error("Update student error:", error.message);
@@ -221,7 +239,7 @@ export const deleteStudent = async (req, res) => {
       });
     }
 
-    await Student.findByIdAndDelete(req.params.id);
+    await Promise.all([Student.findByIdAndDelete(req.params.id), Result.deleteMany({ student: req.params.id })]);
 
     res.status(200).json({
       success: true,

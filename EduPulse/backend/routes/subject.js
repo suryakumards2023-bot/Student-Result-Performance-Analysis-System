@@ -9,17 +9,18 @@ import {
 } from "../controllers/subject.js";
 
 import protect from "../middleware/auth.js";
+import authorizeRoles from "../middleware/role.js";
 
 const router = express.Router();
 
-router.post("/", protect, createSubject);
+router.post("/", protect, authorizeRoles("admin"), createSubject);
 
-router.get("/", protect, getSubjects);
+router.get("/", protect, authorizeRoles("admin", "faculty", "student"), getSubjects);
 
-router.get("/:id", protect, getSubjectById);
+router.get("/:id", protect, authorizeRoles("admin", "faculty", "student"), getSubjectById);
 
-router.put("/:id", protect, updateSubject);
+router.put("/:id", protect, authorizeRoles("admin"), updateSubject);
 
-router.delete("/:id", protect, deleteSubject);
+router.delete("/:id", protect, authorizeRoles("admin"), deleteSubject);
 
 export default router;

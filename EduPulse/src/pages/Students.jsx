@@ -1,66 +1,7 @@
-function Students() {
-  return (
-    <div className="page">
-
-      <div className="page-header">
-        <div>
-          <h1>Student Management</h1>
-          <p>Manage all college students.</p>
-        </div>
-
-        <button className="primary-btn">
-          + Add Student
-        </button>
-      </div>
-
-      <div className="table-container">
-
-        <table>
-
-          <thead>
-            <tr>
-              <th>Student ID</th>
-              <th>Name</th>
-              <th>Department</th>
-              <th>Semester</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-
-          <tbody>
-
-            <tr>
-              <td>ST001</td>
-              <td>Rahul Kumar</td>
-              <td>CSE</td>
-              <td>5</td>
-              <td>
-                <button className="small-btn">
-                  View
-                </button>
-              </td>
-            </tr>
-
-            <tr>
-              <td>ST002</td>
-              <td>Priya Singh</td>
-              <td>CSE</td>
-              <td>5</td>
-              <td>
-                <button className="small-btn">
-                  View
-                </button>
-              </td>
-            </tr>
-
-          </tbody>
-
-        </table>
-
-      </div>
-
-    </div>
-  );
-}
-
-export default Students;
+import { useEffect, useState } from "react";
+import API from "../services/api";
+const blank = { studentId:"", name:"", email:"", phone:"", department:"", course:"", semester:"", admissionYear:"", status:"active" };
+export default function Students() { const [students,setStudents]=useState([]),[departments,setDepartments]=useState([]),[form,setForm]=useState(blank),[editing,setEditing]=useState(null),[open,setOpen]=useState(false),[search,setSearch]=useState(""),[error,setError]=useState("");
+ const load=async()=>{try { const [s,d]=await Promise.all([API.get("/students",{params:{search}}),API.get("/departments")]); setStudents(s.data.data.students);setDepartments(d.data.data.departments);}catch(e){setError(e.response?.data?.message||"Could not load students");}}; useEffect(()=>{load();},[search]);
+ const save=async e=>{e.preventDefault();try{editing?await API.put(`/students/${editing}`,form):await API.post("/students",form);setOpen(false);setForm(blank);setEditing(null);load();}catch(e){setError(e.response?.data?.message||"Could not save student");}}; const edit=s=>{setForm({...blank,...s,department:s.department?._id||s.department});setEditing(s._id);setOpen(true)};
+ return <div className="page"><div className="page-header"><div><h1>Student Management</h1><p>Manage student profiles and enrollment.</p></div><button className="primary-btn" onClick={()=>{setForm(blank);setEditing(null);setOpen(true)}}>+ Add Student</button></div><input className="search-input" placeholder="Search by name, ID, or email" value={search} onChange={e=>setSearch(e.target.value)}/>{error&&<p className="notice error">{error}</p>}{open&&<form className="editor-card" onSubmit={save}>{["studentId","name","email","phone","course","semester","admissionYear"].map(k=><input key={k} required={k!=="phone"} type={k==='email'?'email':k==='semester'||k==='admissionYear'?'number':'text'} placeholder={k.replace(/([A-Z])/g,' $1')} value={form[k]} onChange={e=>setForm({...form,[k]:e.target.value})}/>)}<select required value={form.department} onChange={e=>setForm({...form,department:e.target.value})}><option value="">Select department</option>{departments.map(d=><option key={d._id} value={d._id}>{d.name}</option>)}</select><select value={form.status} onChange={e=>setForm({...form,status:e.target.value})}><option>active</option><option>inactive</option><option>graduated</option></select><button className="primary-btn">Save</button><button type="button" className="small-btn" onClick={()=>setOpen(false)}>Cancel</button></form>}<div className="table-container"><table><thead><tr><th>ID</th><th>Name</th><th>Department</th><th>Semester</th><th>Actions</th></tr></thead><tbody>{students.map(s=><tr key={s._id}><td>{s.studentId}</td><td>{s.name}<br/><small>{s.email}</small></td><td>{s.department?.name||"—"}</td><td>{s.semester}</td><td><button className="small-btn" onClick={()=>edit(s)}>Edit</button> <button className="small-btn danger-btn" onClick={async()=>{if(confirm('Delete this student and their results?')){try{await API.delete(`/students/${s._id}`);load()}catch(e){setError(e.response?.data?.message||'Could not delete student')}}}}>Delete</button></td></tr>)}</tbody></table>{!students.length&&<p className="empty-state">No students found.</p>}</div></div> }

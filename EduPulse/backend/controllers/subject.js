@@ -1,4 +1,5 @@
 import Subject from "../models/Subject.js";
+import Department from "../models/Department.js";
 
 // =========================
 // CREATE SUBJECT
@@ -35,6 +36,7 @@ export const createSubject = async (req, res) => {
       });
     }
 
+    if (!(await Department.exists({ _id: department }))) return res.status(400).json({ success: false, message: "Department not found" });
     const existingSubject = await Subject.findOne({
       $or: [
         { subjectId },
@@ -65,7 +67,7 @@ export const createSubject = async (req, res) => {
     res.status(201).json({
       success: true,
       message: "Subject created successfully",
-      subject
+      data: { subject: await subject.populate("department", "name code") }
     });
   } catch (error) {
     console.error("Create subject error:", error.message);
@@ -84,14 +86,18 @@ export const createSubject = async (req, res) => {
 // =========================
 export const getSubjects = async (req, res) => {
   try {
-    const subjects = await Subject.find().sort({
+    const { department, semester, search = "" } = req.query;
+    const filter = {};
+    if (department) filter.department = department;
+    if (semester) filter.semester = Number(semester);
+    if (search) filter.$or = [{ name: { $regex: search, $options: "i" } }, { code: { $regex: search, $options: "i" } }];
+    const subjects = await Subject.find(filter).populate("department", "name code").sort({
       createdAt: -1
     });
 
     res.status(200).json({
       success: true,
-      count: subjects.length,
-      subjects
+      data: { subjects }
     });
   } catch (error) {
     console.error("Get subjects error:", error.message);
@@ -110,7 +116,7 @@ export const getSubjects = async (req, res) => {
 // =========================
 export const getSubjectById = async (req, res) => {
   try {
-    const subject = await Subject.findById(req.params.id);
+    const subject = await Subject.findById(req.params.id).populate("department", "name code");
 
     if (!subject) {
       return res.status(404).json({
@@ -121,7 +127,7 @@ export const getSubjectById = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      subject
+      data: { subject }
     });
   } catch (error) {
     console.error("Get subject error:", error.message);
@@ -171,12 +177,13 @@ export const updateSubject = async (req, res) => {
       }
     });
 
+    if (req.body.department && !(await Department.exists({ _id: req.body.department }))) return res.status(400).json({ success: false, message: "Department not found" });
     const updatedSubject = await subject.save();
 
     res.status(200).json({
       success: true,
       message: "Subject updated successfully",
-      subject: updatedSubject
+      data: { subject: await updatedSubject.populate("department", "name code") }
     });
   } catch (error) {
     console.error("Update subject error:", error.message);

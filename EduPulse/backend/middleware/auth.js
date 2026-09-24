@@ -12,9 +12,7 @@ const protect = async (req, res, next) => {
       });
     }
 
-const token = authHeader.split(" ")[1];
-
-console.log("Received token:", token);
+    const token = authHeader.split(" ")[1];
 
 const decoded = jwt.verify(
   token,
@@ -31,6 +29,7 @@ const decoded = jwt.verify(
       });
     }
 
+    user.role = user.role.toLowerCase();
     req.user = user;
 
     next();

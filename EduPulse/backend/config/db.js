@@ -1,10 +1,9 @@
 import mongoose from "mongoose";
 
-const LOCAL_MONGO_URI = "mongodb://127.0.0.1:27017/edupulse";
-
 const connectDB = async () => {
   try {
-    const connection = await mongoose.connect(LOCAL_MONGO_URI);
+    if (!process.env.MONGO_URI) throw new Error("MONGO_URI is not configured");
+    const connection = await mongoose.connect(process.env.MONGO_URI);
 
     console.log(
       `MongoDB connected: ${connection.connection.host}`
@@ -13,7 +12,7 @@ const connectDB = async () => {
     console.error("MongoDB connection failed:");
     console.error(error.message);
 
-    process.exit(1);
+    throw error;
   }
 };
 

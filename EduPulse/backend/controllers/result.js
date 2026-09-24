@@ -59,10 +59,10 @@ export const createResult = async (req, res) => {
       });
     }
 
-    const finalMaxMarks =
-      maxMarks || existingSubject.maxMarks || 100;
+    const finalMaxMarks = Number(maxMarks) || existingSubject.maxMarks || 100;
+    const numericMarks = Number(marksObtained);
 
-    if (marksObtained > finalMaxMarks) {
+    if (!Number.isFinite(numericMarks) || numericMarks < 0 || numericMarks > finalMaxMarks) {
       return res.status(400).json({
         success: false,
         message: "Marks obtained cannot exceed maximum marks"
@@ -71,7 +71,7 @@ export const createResult = async (req, res) => {
 
     // Calculate result
     const percentage = calculatePercentage(
-      marksObtained,
+      numericMarks,
       finalMaxMarks
     );
 
@@ -120,7 +120,17 @@ export const createResult = async (req, res) => {
 // =========================
 export const getResults = async (req, res) => {
   try {
-    const results = await Result.find()
+    const { search = "", status, student, subject } = req.query;
+    const filter = {};
+    if (status) filter.status = status;
+    if (student) filter.student = student;
+    if (subject) filter.subject = subject;
+    if (req.user.role === "student") {
+      const ownStudent = await Student.findOne({ user: req.user._id }).select("_id");
+      if (!ownStudent) return res.status(403).json({ success: false, message: "No student profile is linked to this account" });
+      filter.student = ownStudent._id;
+    }
+    const results = await Result.find(filter)
       .populate(
         "student",
         "studentId name email department course"
@@ -133,10 +143,10 @@ export const getResults = async (req, res) => {
         createdAt: -1
       });
 
+    const filteredResults = search ? results.filter((result) => [result.student?.name, result.student?.studentId, result.subject?.name, result.subject?.code].some((value) => value?.toLowerCase().includes(search.toLowerCase()))) : results;
     res.status(200).json({
       success: true,
-      count: results.length,
-      results
+      data: { results: filteredResults }
     });
   } catch (error) {
     console.error("Get results error:", error.message);
@@ -172,6 +182,11 @@ export const getResultById = async (req, res) => {
       });
     }
 
+    if (req.user.role === "student") {
+      const ownStudent = await Student.findOne({ user: req.user._id }).select("_id");
+      if (!ownStudent || String(result.student?._id) !== String(ownStudent._id)) return res.status(403).json({ success: false, message: "You can only access your own results" });
+    }
+
     res.status(200).json({
       success: true,
       result
@@ -181,7 +196,7 @@ export const getResultById = async (req, res) => {
 
     res.status(400).json({
       success: false,
-      message: "Invalid result ID"
+      message: "Invalid result reference"
     });
   }
 };
@@ -258,7 +273,7 @@ export const updateResult = async (req, res) => {
       result.remarks = remarks;
     }
 
-    if (result.marksObtained > result.maxMarks) {
+    if (!Number.isFinite(Number(result.marksObtained)) || result.marksObtained < 0 || result.marksObtained > result.maxMarks) {
       return res.status(400).json({
         success: false,
         message: "Marks obtained cannot exceed maximum marks"
@@ -296,7 +311,7 @@ export const updateResult = async (req, res) => {
     res.status(200).json({
       success: true,
       message: "Result updated successfully",
-      result: updatedResult
+      data: { result: updatedResult }
     });
   } catch (error) {
     console.error("Update result error:", error.message);
@@ -444,4 +459,15 @@ export const generateStudentResultPDF = async (req, res) => {
       message: "Failed to generate PDF"
     });
   }
+};
+
+export const getStudentResults = async (req, res) => {
+  try {
+    if (req.user.role === "student") {
+      const ownStudent = await Student.findOne({ user: req.user._id }).select("_id");
+      if (!ownStudent || String(ownStudent._id) !== req.params.studentId) return res.status(403).json({ success: false, message: "You can only access your own results" });
+    }
+    const results = await Result.find({ student: req.params.studentId }).populate("student", "studentId name department").populate("subject", "subjectId name code").sort({ semester: 1, createdAt: -1 });
+    res.json({ success: true, data: { results } });
+  } catch (error) { res.status(400).json({ success: false, message: "Invalid student ID" }); }
 };

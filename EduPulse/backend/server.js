@@ -11,6 +11,7 @@ import resultRoutes from "./routes/result.js";
 import performanceRoutes from "./routes/performance.js";
 import uploadRoutes from "./routes/upload.js";
 import dashboardRoutes from "./routes/dashboard.js";
+import facultyRoutes from "./routes/faculty.js";
 
 dotenv.config();
 
@@ -20,7 +21,7 @@ const app = express();
 connectDB();
 
 // Middleware
-app.use(cors());
+app.use(cors({ origin: process.env.CLIENT_URL || "http://localhost:5173" }));
 app.use(express.json());
 
 // Routes
@@ -32,6 +33,7 @@ app.use("/api/results", resultRoutes);
 app.use("/api/performance", performanceRoutes);
 app.use("/api/upload", uploadRoutes);
 app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/faculty", facultyRoutes);
 
 // Test route
 app.get("/", (req, res) => {
@@ -45,4 +47,9 @@ const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
+});
+
+app.use((err, req, res, next) => {
+  console.error(err);
+  res.status(err.status || 500).json({ success: false, message: err.message || "Server error" });
 });

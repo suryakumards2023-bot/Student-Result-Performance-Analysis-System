@@ -7,7 +7,7 @@ import User from "../models/User.js";
 // =========================
 export const registerUser = async (req, res) => {
   try {
-    const { name, email, password } = req.body;
+    const { name, email, password, role } = req.body;
 
     // Validate fields
     if (!name || !email || !password) {
@@ -24,6 +24,16 @@ export const registerUser = async (req, res) => {
         message: "Password must be at least 6 characters"
       });
     }
+
+    const allowedRoles = ["student"];
+    if (role && !allowedRoles.includes(role.toLowerCase())) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid role"
+      });
+    }
+
+    const userRole = role ? role.toLowerCase() : "student";
 
     // Check existing user
     const existingUser = await User.findOne({
@@ -45,25 +55,25 @@ export const registerUser = async (req, res) => {
       name,
       email: email.toLowerCase(),
       password: hashedPassword,
-      role: "student"
+      role: userRole
     });
 
     res.status(201).json({
       success: true,
       message: "User registered successfully",
-      user: {
+      data: { user: {
         id: user._id,
         name: user.name,
         email: user.email,
         role: user.role
-      }
+      } }
     });
   } catch (error) {
     console.error("Register error:", error.message);
 
     res.status(500).json({
       success: false,
-      message: "Server error"
+      message: process.env.NODE_ENV === "production" ? "Unable to register right now" : error.message
     });
   }
 };
@@ -108,11 +118,13 @@ export const loginUser = async (req, res) => {
       });
     }
 
+    const userRole = user.role.toLowerCase();
+
     // Create JWT
     const token = jwt.sign(
       {
         id: user._id,
-        role: user.role
+        role: userRole
       },
       process.env.JWT_SECRET,
       {
@@ -124,12 +136,12 @@ export const loginUser = async (req, res) => {
       success: true,
       message: "Login successful",
       token,
-      user: {
+      data: { user: {
         id: user._id,
         name: user.name,
         email: user.email,
-        role: user.role
-      }
+        role: userRole
+      } }
     });
   } catch (error) {
     console.error("Login error:", error.message);
@@ -148,7 +160,7 @@ export const getCurrentUser = async (req, res) => {
   try {
     res.status(200).json({
       success: true,
-      user: req.user
+      data: { user: req.user }
     });
   } catch (error) {
     console.error("Get current user error:", error.message);
